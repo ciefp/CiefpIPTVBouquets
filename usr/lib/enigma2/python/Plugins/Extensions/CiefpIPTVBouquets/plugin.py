@@ -20,7 +20,7 @@ class CiefpIPTV(Screen):
         <screen position="center,center" size="1600,800" title="..:: Ciefp IPTV Bouquets ::..    (Version{version})">
             <widget name="left_list" position="0,0" size="620,700" scrollbarMode="showAlways" itemHeight="33" font="Regular;28" />
             <widget name="right_list" position="630,0" size="610,700" scrollbarMode="showAlways" itemHeight="33" font="Regular;28" />
-            <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTV/background.png" position="1240,0" size="360,800" />
+            <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background.png" position="1240,0" size="360,800" />
             <widget name="status" position="0,710" size="840,50" font="Regular;24" />
             <widget name="green_button" position="0,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
             <widget name="yellow_button" position="170,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
