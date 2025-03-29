@@ -9,7 +9,7 @@ from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
 
-PLUGIN_VERSION = "1.0"
+PLUGIN_VERSION = "1.1"
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
@@ -25,7 +25,8 @@ class CiefpIPTV(Screen):
             <widget name="green_button" position="0,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
             <widget name="yellow_button" position="170,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
             <widget name="red_button" position="340,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
-            <widget name="version_info" position="510,750" size="480,40" font="Regular;20" foregroundColor="#FFFFFF" />
+            <widget name="blue_button" position="510,750" size="150,35" font="Bold;28" halign="center" backgroundColor="#132B9F" foregroundColor="#000000" />
+            <widget name="version_info" position="680,750" size="480,40" font="Regular;20" foregroundColor="#FFFFFF" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -43,6 +44,7 @@ class CiefpIPTV(Screen):
         self["green_button"] = Label("Select")
         self["yellow_button"] = Label("Install")
         self["red_button"] = Label("Exit")
+        self["blue_button"] = Label("Cleaner")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
         
         # Actions
@@ -53,7 +55,8 @@ class CiefpIPTV(Screen):
             "down": self.down,
             "green": self.select_item,
             "yellow": self.install,
-            "red": self.exit
+            "red": self.exit,
+            "blue": self.open_cleaner
         }, -1)
         
         self.onLayoutFinish.append(self.load_bouquets)
@@ -126,7 +129,6 @@ class CiefpIPTV(Screen):
         try:
             bouquets_tv_path = os.path.join(BOUQUET_PATH, "bouquets.tv")
             
-            # Copy selected bouquets to /etc/enigma2
             for bouquet in self.selected_bouquets:
                 bouquet_info = self.bouquet_files.get(bouquet)
                 if not bouquet_info:
@@ -143,11 +145,9 @@ class CiefpIPTV(Screen):
                 if not content.startswith("#NAME"):
                     raise ValueError(f"Invalid bouquet file format: {filename}")
                 
-                # Save the bouquet file without modifying it
                 with open(destination, "w") as f:
                     f.write(content)
                 
-                # Register the bouquet in bouquets.tv
                 service_line = f'#SERVICE 1:7:1:0:0:0:0:0:0:0:FROM BOUQUET "{filename}" ORDER BY bouquet\n'
                 if os.path.exists(bouquets_tv_path):
                     with open(bouquets_tv_path, "r") as f:
@@ -163,7 +163,6 @@ class CiefpIPTV(Screen):
             self.selected_bouquets = []
             self["right_list"].setList([])
             
-            # Ask for reload
             self.session.openWithCallback(
                 self.reload_confirm,
                 MessageBox,
@@ -200,7 +199,98 @@ class CiefpIPTV(Screen):
         self["left_list"].up()
 
     def down(self):
-        self["left_list"].down()
+        self["down"].down()
+
+    def exit(self):
+        self.close()
+
+    def open_cleaner(self):
+        self.session.open(BouquetCleaner)
+
+class BouquetCleaner(Screen):
+    skin = """
+        <screen name="bouquetcleaner" position="center,center" size="1200,800" title="..:: Deleted Bouquets ::..">
+            <widget name="channel_list" position="20,20" size="810,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="background" position="820,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
+            <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
+            <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
+        </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.session = session
+        self.selected_file = None
+        self.del_files = []
+
+        # UI Components
+        self["channel_list"] = MenuList([])
+        self["background"] = Pixmap()
+        self["button_red"] = Label("Delete")
+        self["button_green"] = Label("Select All")
+
+        # Actions
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+            "ok": self.select_file,
+            "cancel": self.exit,
+            "up": self.up,
+            "down": self.down,
+            "red": self.delete_selected,
+            "green": self.select_all
+        }, -1)
+
+        self.onLayoutFinish.append(self.load_deleted_bouquets)
+
+    def load_deleted_bouquets(self):
+        self.del_files = [f for f in os.listdir(BOUQUET_PATH) if f.endswith(".del")]
+        if not self.del_files:
+            self["channel_list"].setList(["No .del files found"])
+        else:
+            self["channel_list"].setList(self.del_files)
+
+    def select_file(self):
+        current = self["channel_list"].getCurrent()
+        if current and current != "No .del files found":
+            self.selected_file = current
+            self["channel_list"].setList([f"{f} {'[SELECTED]' if f == self.selected_file else ''}" for f in self.del_files])
+
+    def select_all(self):
+        if self.del_files:
+            self.selected_file = None  # Reset single selection
+            self["channel_list"].setList([f"{f} [SELECTED]" for f in self.del_files])
+
+    def delete_selected(self):
+        if not self.del_files:
+            self.session.open(MessageBox, "No .del files to delete!", MessageBox.TYPE_INFO)
+            return
+
+        to_delete = []
+        if self.selected_file:
+            to_delete = [self.selected_file]
+        else:
+            # If all are selected (no single selection)
+            current_list = self["channel_list"].getList()
+            if all("[SELECTED]" in item for item in current_list):
+                to_delete = self.del_files
+
+        if not to_delete:
+            self.session.open(MessageBox, "No files selected for deletion!", MessageBox.TYPE_ERROR)
+            return
+
+        try:
+            for file in to_delete:
+                os.remove(os.path.join(BOUQUET_PATH, file))
+            self.session.open(MessageBox, f"Deleted {len(to_delete)} file(s) successfully!", MessageBox.TYPE_INFO)
+            self.load_deleted_bouquets()  # Refresh list
+            self.selected_file = None
+        except Exception as e:
+            self.session.open(MessageBox, f"Error deleting files: {str(e)}", MessageBox.TYPE_ERROR)
+
+    def up(self):
+        self["channel_list"].up()
+
+    def down(self):
+        self["channel_list"].down()
 
     def exit(self):
         self.close()
