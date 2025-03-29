@@ -210,7 +210,7 @@ class CiefpIPTV(Screen):
 class BouquetCleaner(Screen):
     skin = """
         <screen name="bouquetcleaner" position="center,center" size="1200,800" title="..:: Deleted Bouquets ::..">
-            <widget name="channel_list" position="20,20" size="810,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="channel_list" position="20,20" size="800,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
             <widget name="background" position="820,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
