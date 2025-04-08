@@ -9,7 +9,7 @@ from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
 
-PLUGIN_VERSION = "1.1"
+PLUGIN_VERSION = "1.2"  # Updated version
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
@@ -36,18 +36,16 @@ class CiefpIPTV(Screen):
         self.selected_bouquets = []
         self.bouquet_files = {}
         
-        # UI Components
         self["left_list"] = MenuList([])
         self["right_list"] = MenuList([])
         self["background"] = Pixmap()
         self["status"] = Label("Loading bouquets...")
         self["green_button"] = Label("Select")
         self["yellow_button"] = Label("Install")
-        self["red_button"] = Label("Exit")
+        self["red_button"] = Label("IPTV Manager")  # Changed from Exit to IPTV Manager
         self["blue_button"] = Label("Cleaner")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
         
-        # Actions
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.select_item,
             "cancel": self.exit,
@@ -55,7 +53,7 @@ class CiefpIPTV(Screen):
             "down": self.down,
             "green": self.select_item,
             "yellow": self.install,
-            "red": self.exit,
+            "red": self.open_iptv_manager,  # Changed from exit to open_iptv_manager
             "blue": self.open_cleaner
         }, -1)
         
@@ -207,11 +205,14 @@ class CiefpIPTV(Screen):
     def open_cleaner(self):
         self.session.open(BouquetCleaner)
 
+    def open_iptv_manager(self):
+        self.session.open(IPTVManager)
+
 class BouquetCleaner(Screen):
     skin = """
         <screen name="bouquetcleaner" position="center,center" size="1200,800" title="..:: Deleted Bouquets ::..">
-            <widget name="channel_list" position="20,20" size="800,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
-            <widget name="background" position="820,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
+            <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
         </screen>
@@ -294,6 +295,203 @@ class BouquetCleaner(Screen):
 
     def exit(self):
         self.close()
+        
+class IPTVManager(Screen):
+    skin = """
+        <screen name="iptvmanager" position="center,center" size="1200,800" title="..:: IPTV Manager ::..">
+            <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background3.png" zPosition="-1" alphatest="on" />
+            <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
+            <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
+        </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.session = session
+        self.selected_bouquets = []
+        self.iptv_files = []
+
+        self["channel_list"] = MenuList([])
+        self["background"] = Pixmap()
+        self["button_red"] = Label("Delete")
+        self["button_green"] = Label("Select")
+
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+            "ok": self.select_bouquet,
+            "cancel": self.exit,
+            "up": self.up,
+            "down": self.down,
+            "red": self.delete_selected,
+            "green": self.select_bouquet
+        }, -1)
+
+        self.onLayoutFinish.append(self.load_iptv_bouquets)
+
+    def load_iptv_bouquets(self):
+        self.iptv_files = []
+        display_names = []
+        bouquets_order = []
+        
+        # First, read the order from bouquets.tv
+        bouquets_tv_path = os.path.join(BOUQUET_PATH, "bouquets.tv")
+        if os.path.exists(bouquets_tv_path):
+            with open(bouquets_tv_path, "r") as f:
+                for line in f:
+                    if "#SERVICE" in line and "FROM BOUQUET" in line:
+                        # Extract filename from service line
+                        start = line.find('"') + 1
+                        end = line.find('"', start)
+                        if start > 0 and end > start:
+                            filename = line[start:end]
+                            bouquets_order.append(filename)
+
+        # Get all IPTV files
+        all_files = {}
+        for f in os.listdir(BOUQUET_PATH):
+            if (f.startswith("userbouquet.ciefpsettings") or 
+                f.startswith("userbouquet.iptv") or 
+                "iptv" in f.lower()) and f.endswith(".tv"):
+                bouquet_path = os.path.join(BOUQUET_PATH, f)
+                display_name = f
+                
+                try:
+                    with open(bouquet_path, "r") as file:
+                        for line in file:
+                            if line.startswith("#NAME"):
+                                display_name = line.replace("#NAME", "").strip()
+                                break
+                except:
+                    display_name = f.replace("userbouquet.", "").replace(".tv", "")
+                
+                all_files[f] = display_name
+
+        # Sort files according to bouquets.tv order
+        ordered_files = []
+        for filename in bouquets_order:
+            if filename in all_files:
+                ordered_files.append((filename, all_files[filename]))
+                del all_files[filename]
+        
+        # Add remaining files (those not in bouquets.tv) at the end
+        for filename, display_name in all_files.items():
+            ordered_files.append((filename, display_name))
+
+        # Update iptv_files and display_names
+        self.iptv_files = [f[0] for f in ordered_files]
+        display_names = [f[1] for f in ordered_files]
+        
+        if not display_names:
+            self["channel_list"].setList(["No IPTV bouquets found"])
+        else:
+            self["channel_list"].setList(display_names)
+
+    def select_bouquet(self):
+        current = self["channel_list"].getCurrent()
+        if current and current != "No IPTV bouquets found":
+            if current in self.selected_bouquets:
+                self.selected_bouquets.remove(current)
+            else:
+                self.selected_bouquets.append(current)
+            self.update_list()
+
+    def update_list(self):
+        display_names = []
+        for i, f in enumerate(self.iptv_files):
+            bouquet_path = os.path.join(BOUQUET_PATH, f)
+            display_name = f
+            try:
+                with open(bouquet_path, "r") as file:
+                    for line in file:
+                        if line.startswith("#NAME"):
+                            display_name = line.replace("#NAME", "").strip()
+                            break
+            except:
+                display_name = f.replace("userbouquet.", "").replace(".tv", "")
+            
+            if display_name in self.selected_bouquets:
+                display_name += " [SELECTED]"
+            display_names.append(display_name)
+        self["channel_list"].setList(display_names)
+
+    def delete_selected(self):
+        if not self.selected_bouquets:
+            self.session.open(MessageBox, "No bouquets selected for deletion!", MessageBox.TYPE_ERROR)
+            return
+
+        try:
+            for bouquet in self.selected_bouquets:
+                for i, f in enumerate(self.iptv_files):
+                    display_name = f
+                    bouquet_path = os.path.join(BOUQUET_PATH, f)
+                    try:
+                        with open(bouquet_path, "r") as file:
+                            for line in file:
+                                if line.startswith("#NAME"):
+                                    display_name = line.replace("#NAME", "").strip()
+                                    break
+                    except:
+                        display_name = f.replace("userbouquet.", "").replace(".tv", "")
+                    
+                    if display_name == bouquet:
+                        os.remove(bouquet_path)
+                        # Remove from bouquets.tv
+                        bouquets_tv_path = os.path.join(BOUQUET_PATH, "bouquets.tv")
+                        if os.path.exists(bouquets_tv_path):
+                            with open(bouquets_tv_path, "r") as file:
+                                lines = file.readlines()
+                            with open(bouquets_tv_path, "w") as file:
+                                for line in lines:
+                                    if f not in line:
+                                        file.write(line)
+
+            self.session.open(MessageBox, f"Deleted {len(self.selected_bouquets)} bouquet(s) successfully!", MessageBox.TYPE_INFO)
+            self.selected_bouquets = []
+            self.load_iptv_bouquets()
+            
+            self.session.openWithCallback(
+                self.reload_confirm,
+                MessageBox,
+                "Do you want to reload settings now?",
+                MessageBox.TYPE_YESNO
+            )
+        except Exception as e:
+            self.session.open(MessageBox, f"Error deleting bouquets: {str(e)}", MessageBox.TYPE_ERROR)
+
+    def reload_confirm(self, result):
+        if result:
+            self.reload_settings()
+
+    def reload_settings(self):
+        try:
+            eDVBDB.getInstance().reloadServicelist()
+            eDVBDB.getInstance().reloadBouquets()
+            self.session.open(
+                MessageBox,
+                "Reload successful! Settings updated.",
+                MessageBox.TYPE_INFO,
+                timeout=5
+            )
+        except Exception as e:
+            self.session.open(
+                MessageBox,
+                "Reload failed: " + str(e),
+                MessageBox.TYPE_ERROR,
+                timeout=5
+            )
+
+    def up(self):
+        self["channel_list"].up()
+
+    def down(self):
+        self["channel_list"].down()
+
+    def exit(self):
+        self.close()
+
+# Keeping existing BouquetCleaner and main/Plugins functions unchanged
+# ... (BouquetCleaner class remains as is)
+# ... (main and Plugins functions remain as is)
 
 def main(session, **kwargs):
     session.open(CiefpIPTV)
