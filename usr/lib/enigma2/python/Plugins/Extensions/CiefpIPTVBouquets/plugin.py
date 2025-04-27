@@ -8,8 +8,9 @@ from Plugins.Plugin import PluginDescriptor
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
+import re
 
-PLUGIN_VERSION = "1.2"  # Updated version
+PLUGIN_VERSION = "1.3"  # Updated version
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
@@ -42,7 +43,7 @@ class CiefpIPTV(Screen):
         self["status"] = Label("Loading bouquets...")
         self["green_button"] = Label("Select")
         self["yellow_button"] = Label("Install")
-        self["red_button"] = Label("IPTV Manager")  # Changed from Exit to IPTV Manager
+        self["red_button"] = Label("IPTV Manager")
         self["blue_button"] = Label("Cleaner")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
         
@@ -53,7 +54,7 @@ class CiefpIPTV(Screen):
             "down": self.down,
             "green": self.select_item,
             "yellow": self.install,
-            "red": self.open_iptv_manager,  # Changed from exit to open_iptv_manager
+            "red": self.open_iptv_manager,
             "blue": self.open_cleaner
         }, -1)
         
@@ -197,7 +198,7 @@ class CiefpIPTV(Screen):
         self["left_list"].up()
 
     def down(self):
-        self["down"].down()
+        self["left_list"].down()
 
     def exit(self):
         self.close()
@@ -224,13 +225,11 @@ class BouquetCleaner(Screen):
         self.selected_file = None
         self.del_files = []
 
-        # UI Components
         self["channel_list"] = MenuList([])
         self["background"] = Pixmap()
         self["button_red"] = Label("Delete")
         self["button_green"] = Label("Select All")
 
-        # Actions
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.select_file,
             "cancel": self.exit,
@@ -257,7 +256,7 @@ class BouquetCleaner(Screen):
 
     def select_all(self):
         if self.del_files:
-            self.selected_file = None  # Reset single selection
+            self.selected_file = None
             self["channel_list"].setList([f"{f} [SELECTED]" for f in self.del_files])
 
     def delete_selected(self):
@@ -269,7 +268,6 @@ class BouquetCleaner(Screen):
         if self.selected_file:
             to_delete = [self.selected_file]
         else:
-            # If all are selected (no single selection)
             current_list = self["channel_list"].getList()
             if all("[SELECTED]" in item for item in current_list):
                 to_delete = self.del_files
@@ -282,7 +280,7 @@ class BouquetCleaner(Screen):
             for file in to_delete:
                 os.remove(os.path.join(BOUQUET_PATH, file))
             self.session.open(MessageBox, f"Deleted {len(to_delete)} file(s) successfully!", MessageBox.TYPE_INFO)
-            self.load_deleted_bouquets()  # Refresh list
+            self.load_deleted_bouquets()
             self.selected_file = None
         except Exception as e:
             self.session.open(MessageBox, f"Error deleting files: {str(e)}", MessageBox.TYPE_ERROR)
@@ -295,7 +293,7 @@ class BouquetCleaner(Screen):
 
     def exit(self):
         self.close()
-        
+
 class IPTVManager(Screen):
     skin = """
         <screen name="iptvmanager" position="center,center" size="1200,800" title="..:: IPTV Manager ::..">
@@ -303,6 +301,7 @@ class IPTVManager(Screen):
             <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background3.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
+            <widget name="button_blue" position="420,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#132B9F" foregroundColor="#000000" />
         </screen>
     """
 
@@ -316,14 +315,16 @@ class IPTVManager(Screen):
         self["background"] = Pixmap()
         self["button_red"] = Label("Delete")
         self["button_green"] = Label("Select")
+        self["button_blue"] = Label("IPTV Editor")
 
-        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"], {
             "ok": self.select_bouquet,
             "cancel": self.exit,
             "up": self.up,
             "down": self.down,
             "red": self.delete_selected,
-            "green": self.select_bouquet
+            "green": self.select_bouquet,
+            "blue": self.open_iptv_editor
         }, -1)
 
         self.onLayoutFinish.append(self.load_iptv_bouquets)
@@ -333,20 +334,17 @@ class IPTVManager(Screen):
         display_names = []
         bouquets_order = []
         
-        # First, read the order from bouquets.tv
         bouquets_tv_path = os.path.join(BOUQUET_PATH, "bouquets.tv")
         if os.path.exists(bouquets_tv_path):
             with open(bouquets_tv_path, "r") as f:
                 for line in f:
                     if "#SERVICE" in line and "FROM BOUQUET" in line:
-                        # Extract filename from service line
                         start = line.find('"') + 1
                         end = line.find('"', start)
                         if start > 0 and end > start:
                             filename = line[start:end]
                             bouquets_order.append(filename)
 
-        # Get all IPTV files
         all_files = {}
         for f in os.listdir(BOUQUET_PATH):
             if (f.startswith("userbouquet.ciefpsettings") or 
@@ -366,18 +364,15 @@ class IPTVManager(Screen):
                 
                 all_files[f] = display_name
 
-        # Sort files according to bouquets.tv order
         ordered_files = []
         for filename in bouquets_order:
             if filename in all_files:
                 ordered_files.append((filename, all_files[filename]))
                 del all_files[filename]
         
-        # Add remaining files (those not in bouquets.tv) at the end
         for filename, display_name in all_files.items():
             ordered_files.append((filename, display_name))
 
-        # Update iptv_files and display_names
         self.iptv_files = [f[0] for f in ordered_files]
         display_names = [f[1] for f in ordered_files]
         
@@ -389,10 +384,25 @@ class IPTVManager(Screen):
     def select_bouquet(self):
         current = self["channel_list"].getCurrent()
         if current and current != "No IPTV bouquets found":
-            if current in self.selected_bouquets:
-                self.selected_bouquets.remove(current)
-            else:
-                self.selected_bouquets.append(current)
+            base_current = current.replace(" [SELECTED]", "")  # Uklanjanje [SELECTED] iz imena
+            for i, f in enumerate(self.iptv_files):
+                display_name = f
+                bouquet_path = os.path.join(BOUQUET_PATH, f)
+                try:
+                    with open(bouquet_path, "r") as file:
+                        for line in file:
+                            if line.startswith("#NAME"):
+                                display_name = line.replace("#NAME", "").strip()
+                                break
+                except:
+                    display_name = f.replace("userbouquet.", "").replace(".tv", "")
+
+                if display_name == base_current:
+                    if base_current in self.selected_bouquets:
+                        self.selected_bouquets.remove(base_current)
+                    else:
+                        self.selected_bouquets.append(base_current)
+                    break
             self.update_list()
 
     def update_list(self):
@@ -435,7 +445,6 @@ class IPTVManager(Screen):
                     
                     if display_name == bouquet:
                         os.remove(bouquet_path)
-                        # Remove from bouquets.tv
                         bouquets_tv_path = os.path.join(BOUQUET_PATH, "bouquets.tv")
                         if os.path.exists(bouquets_tv_path):
                             with open(bouquets_tv_path, "r") as file:
@@ -480,6 +489,25 @@ class IPTVManager(Screen):
                 timeout=5
             )
 
+    def open_iptv_editor(self):
+        current = self["channel_list"].getCurrent()
+        if current and current != "No IPTV bouquets found":
+            for i, f in enumerate(self.iptv_files):
+                display_name = f
+                bouquet_path = os.path.join(BOUQUET_PATH, f)
+                try:
+                    with open(bouquet_path, "r") as file:
+                        for line in file:
+                            if line.startswith("#NAME"):
+                                display_name = line.replace("#NAME", "").strip()
+                                break
+                except:
+                    display_name = f.replace("userbouquet.", "").replace(".tv", "")
+                
+                if display_name == current:
+                    self.session.open(IPTVEditor, bouquet_path, f)
+                    break
+
     def up(self):
         self["channel_list"].up()
 
@@ -489,9 +517,300 @@ class IPTVManager(Screen):
     def exit(self):
         self.close()
 
-# Keeping existing BouquetCleaner and main/Plugins functions unchanged
-# ... (BouquetCleaner class remains as is)
-# ... (main and Plugins functions remain as is)
+class IPTVEditor(Screen):
+    skin = """
+        <screen name="iptveditor" position="center,center" size="1200,800" title="..:: IPTV Editor ::..">
+            <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background4.png" zProvideoPosition="-1" alphatest="on" />
+            <widget name="button_red" position="20,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
+            <widget name="button_green" position="170,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
+            <widget name="button_yellow" position="320,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
+            <widget name="button_blue" position="470,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#132B9F" foregroundColor="#000000" />
+        </screen>
+    """
+
+    def __init__(self, session, bouquet_path, filename):
+        Screen.__init__(self, session)
+        self.session = session
+        self.bouquet_path = bouquet_path
+        self.filename = filename
+        self.channels = []
+        self.selected_channels = []
+        self.move_mode = False
+        self.channel_names = []
+        self.original_channels = []
+        self.bouquet_name = ""
+
+        self["channel_list"] = MenuList([])
+        self["background"] = Pixmap()
+        self["button_red"] = Label("Delete")
+        self["button_green"] = Label("Save")
+        self["button_yellow"] = Label("Move Mode")
+        self["button_blue"] = Label("Select Similar")
+
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"], {
+            "ok": self.select_channel,
+            "cancel": self.exit,
+            "up": self.up,
+            "down": self.down,
+            "left": self.page_up,
+            "right": self.page_down,
+            "red": self.delete_selected,
+            "green": self.save_changes,
+            "yellow": self.toggle_move_mode,
+            "blue": self.select_similar
+        }, -1)
+
+        self.onLayoutFinish.append(self.load_channels)
+
+    def load_channels(self):
+        self.channels = []
+        self.channel_names = []
+        try:
+            with open(self.bouquet_path, "r") as file:
+                current_channel = None
+                for line in file:
+                    line = line.strip()
+                    if line.startswith("#NAME"):
+                        self.bouquet_name = line.replace("#NAME", "").strip()
+                    elif line.startswith("#SERVICE"):
+                        if current_channel:
+                            self.channels.append(current_channel)
+                        current_channel = {"service": line, "description": ""}
+                    elif line.startswith("#DESCRIPTION") and current_channel:
+                        current_channel["description"] = line.replace("#DESCRIPTION", "").strip()
+                
+                if current_channel:
+                    self.channels.append(current_channel)
+            
+            self.original_channels = self.channels.copy()
+            self.channel_names = [channel["description"] or channel["service"] for channel in self.channels]
+            self.update_list()
+        except Exception as e:
+            self["channel_list"].setList(["Error loading channels"])
+            self.session.open(MessageBox, f"Error loading channels: {str(e)}", MessageBox.TYPE_ERROR)
+
+    def update_list(self):
+        display_names = []
+        for i, channel in enumerate(self.channels):
+            name = channel["description"] or channel["service"]
+            if i in self.selected_channels:
+                if self.move_mode:
+                    name = f">> {name}"
+                else:
+                    name = f"{name} [SELECTED]"
+            display_names.append(name)
+        self["channel_list"].setList(display_names)
+        # Ensure the first selected channel is in view
+        if self.selected_channels and self.move_mode:
+            self["channel_list"].moveToIndex(self.selected_channels[0])
+
+    def select_channel(self):
+        current_index = self["channel_list"].getSelectionIndex()
+        if current_index < len(self.channels):
+            if current_index in self.selected_channels:
+                self.selected_channels.remove(current_index)
+            else:
+                self.selected_channels.append(current_index)
+            self.update_list()
+
+    def select_similar(self):
+        current_index = self["channel_list"].getSelectionIndex()
+        if current_index < 0 or current_index >= len(self.channels):
+            return
+        current_name = self.channels[current_index]["description"] or self.channels[current_index]["service"]
+
+        # Provera za obrazac sa prefiksom (npr. UK:, EXYU:, M4:)
+        if ":" in current_name:
+            base_prefix = current_name.split(":")[0] + ":"
+            # Pronalazimo sve kanale sa istim prefiksom
+            similar_channels = [
+                i for i, channel in enumerate(self.channels)
+                if (channel["description"] or channel["service"]).startswith(base_prefix)
+            ]
+            # Provera da li su svi slični kanali već selektovani
+            all_selected = all(i in self.selected_channels for i in similar_channels)
+            if all_selected and similar_channels:
+                # Poništavamo selekciju svih sličnih kanala
+                self.selected_channels = [i for i in self.selected_channels if i not in similar_channels]
+            elif similar_channels:
+                # Selektujemo sve slične kanale
+                self.selected_channels = list(set(self.selected_channels + similar_channels))
+            else:
+                self.session.open(MessageBox, f"No similar channels found for: {current_name}", MessageBox.TYPE_INFO)
+            self.update_list()
+            return
+
+        # Provera za obrazac serije: nešto SXX EX
+        if (match := re.match(r"(.*?)\s+S\d+\s+E\d+", current_name, re.IGNORECASE)):
+            base_prefix = match.group(1) + " "
+        # Provera za 24/7 kanale
+        elif current_name.startswith("24/7 "):
+            base_prefix = "24/7 "
+        # Provera za TV kanale ili filmove: uzimamo deo do prvog razmaka
+        else:
+            # Uzimamo deo do prvog razmaka (može biti više reči, npr. "Netflix Premiere")
+            parts = current_name.split(" ", 2)  # Razdvojimo na maksimalno 3 dela
+            base_prefix = parts[0] + " " if len(parts) > 1 else current_name + " "
+            if len(parts) > 2 and parts[1] in ["Premiere", "Series", "Episode", "TV+"]:  # Za višerečene prefikse poput "Netflix Premiere"
+                base_prefix = f"{parts[0]} {parts[1]} "
+
+        # Pronalazimo sve kanale koji počinju sa base_prefix ili su tačno jednaki base_prefix bez razmaka
+        base_name = base_prefix.rstrip()  # Uklanjamo poslednji razmak za proveru tačnog podudaranja
+        similar_channels = [
+            i for i, channel in enumerate(self.channels)
+            if (channel["description"] or channel["service"]).startswith(base_prefix) or
+               (channel["description"] or channel["service"]) == base_name
+        ]
+        # Provera da li su svi slični kanali već selektovani
+        all_selected = all(i in self.selected_channels for i in similar_channels)
+        if all_selected and similar_channels:
+            # Poništavamo selekciju svih sličnih kanala
+            self.selected_channels = [i for i in self.selected_channels if i not in similar_channels]
+        elif similar_channels:
+            # Selektujemo sve slične kanale
+            self.selected_channels = list(set(self.selected_channels + similar_channels))
+        else:
+            self.session.open(MessageBox, f"No similar channels found for: {current_name}", MessageBox.TYPE_INFO)
+        self.update_list()
+
+    def toggle_move_mode(self):
+        self.move_mode = not self.move_mode
+        self["button_yellow"].setText("Move Mode" if not self.move_mode else "Disable Move")
+        if not self.move_mode:
+            self.selected_channels = []
+        self.update_list()
+
+    def up(self):
+        if self.move_mode and self.selected_channels:
+            self.move_channels(-1)
+        else:
+            self["channel_list"].up()
+
+    def down(self):
+        if self.move_mode and self.selected_channels:
+            self.move_channels(1)
+        else:
+            self["channel_list"].down()
+
+    def page_up(self):
+        if self.move_mode and self.selected_channels:
+            self.move_channels(-10)  # Move by a page (approximate)
+        else:
+            self["channel_list"].pageUp()
+
+    def page_down(self):
+        if self.move_mode and self.selected_channels:
+            self.move_channels(10)  # Move by a page (approximate)
+        else:
+            self["channel_list"].pageDown()
+
+    def move_channels(self, offset):
+        if not self.selected_channels:
+            return
+
+        new_channels = self.channels.copy()
+        selected_channels = sorted(self.selected_channels)
+        moved_channels = [self.channels[i] for i in selected_channels]
+        
+        # Remove selected channels
+        for i in sorted(self.selected_channels, reverse=True):
+            new_channels.pop(i)
+        
+        # Calculate new insertion point
+        first_index = selected_channels[0]
+        new_index = max(0, min(first_index + offset, len(new_channels)))
+        
+        # Insert channels at new position
+        for i, channel in enumerate(moved_channels):
+            new_channels.insert(new_index + i, channel)
+        
+        # Update selected channels indices
+        self.selected_channels = [new_index + i for i in range(len(moved_channels))]
+        self.channels = new_channels
+        self.update_list()
+
+    def delete_selected(self):
+        if not self.selected_channels:
+            self.session.open(MessageBox, "No channels selected for deletion!", MessageBox.TYPE_ERROR)
+            return
+
+        self.session.openWithCallback(
+            self.delete_confirmed,
+            MessageBox,
+            f"Delete {len(self.selected_channels)} selected channel(s)?",
+            MessageBox.TYPE_YESNO
+        )
+
+    def delete_confirmed(self, result):
+        if result:
+            new_channels = [ch for i, ch in enumerate(self.channels) if i not in self.selected_channels]
+            self.channels = new_channels
+            self.selected_channels = []
+            self.update_list()
+            self.session.open(MessageBox, "Channels deleted successfully!", MessageBox.TYPE_INFO)
+
+    def save_changes(self):
+        if self.channels == self.original_channels:
+            self.session.open(MessageBox, "No changes to save!", MessageBox.TYPE_INFO)
+            return
+
+        try:
+            with open(self.bouquet_path, "w") as file:
+                file.write(f"#NAME {self.bouquet_name}\n")
+                for channel in self.channels:
+                    file.write(f"{channel['service']}\n")
+                    if channel["description"]:
+                        file.write(f"#DESCRIPTION {channel['description']}\n")
+            
+            self.original_channels = self.channels.copy()
+            self.session.open(MessageBox, "Changes saved successfully!", MessageBox.TYPE_INFO)
+            
+            self.session.openWithCallback(
+                self.reload_confirm,
+                MessageBox,
+                "Do you want to reload settings now?",
+                MessageBox.TYPE_YESNO
+            )
+        except Exception as e:
+            self.session.open(MessageBox, f"Error saving changes: {str(e)}", MessageBox.TYPE_ERROR)
+
+    def reload_confirm(self, result):
+        if result:
+            self.reload_settings()
+
+    def reload_settings(self):
+        try:
+            eDVBDB.getInstance().reloadServicelist()
+            eDVBDB.getInstance().reloadBouquets()
+            self.session.open(
+                MessageBox,
+                "Reload successful! Settings updated.",
+                MessageBox.TYPE_INFO,
+                timeout=5
+            )
+        except Exception as e:
+            self.session.open(
+                MessageBox,
+                "Reload failed: " + str(e),
+                MessageBox.TYPE_ERROR,
+                timeout=5
+            )
+
+    def exit(self):
+        if self.channels != self.original_channels:
+            self.session.openWithCallback(
+                self.exit_confirmed,
+                MessageBox,
+                "You have unsaved changes. Exit without saving?",
+                MessageBox.TYPE_YESNO
+            )
+        else:
+            self.close()
+
+    def exit_confirmed(self, result):
+        if result:
+            self.close()
 
 def main(session, **kwargs):
     session.open(CiefpIPTV)
