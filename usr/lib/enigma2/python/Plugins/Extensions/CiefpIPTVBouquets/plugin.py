@@ -4,13 +4,14 @@ from Components.Pixmap import Pixmap
 from Components.ActionMap import ActionMap
 from Components.Label import Label
 from Components.MenuList import MenuList
+from Components.FileList import FileList
 from Plugins.Plugin import PluginDescriptor
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
 import re
 
-PLUGIN_VERSION = "1.3"  # Updated version
+PLUGIN_VERSION = "1.4"  # Ažurirana verzija
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
@@ -44,7 +45,7 @@ class CiefpIPTV(Screen):
         self["green_button"] = Label("Select")
         self["yellow_button"] = Label("Install")
         self["red_button"] = Label("IPTV Manager")
-        self["blue_button"] = Label("Cleaner")
+        self["blue_button"] = Label("Viewer")  # Promenjeno na Viewer
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
         
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
@@ -55,7 +56,7 @@ class CiefpIPTV(Screen):
             "green": self.select_item,
             "yellow": self.install,
             "red": self.open_iptv_manager,
-            "blue": self.open_cleaner
+            "blue": self.open_viewer  # Promenjeno na open_viewer
         }, -1)
         
         self.onLayoutFinish.append(self.load_bouquets)
@@ -203,93 +204,59 @@ class CiefpIPTV(Screen):
     def exit(self):
         self.close()
 
-    def open_cleaner(self):
-        self.session.open(BouquetCleaner)
-
     def open_iptv_manager(self):
         self.session.open(IPTVManager)
 
-class BouquetCleaner(Screen):
+    def open_viewer(self):
+        selected = self["left_list"].getCurrent()
+        if selected and selected in self.bouquet_files:
+            self.session.open(BouquetViewer, self.bouquet_files[selected]["download_url"], selected)
+        else:
+            self.session.open(MessageBox, "Please select a bouquet to view!", MessageBox.TYPE_ERROR)
+
+class BouquetViewer(Screen):
     skin = """
-        <screen name="bouquetcleaner" position="center,center" size="1200,800" title="..:: Deleted Bouquets ::..">
+        <screen name="bouquetviewer" position="center,center" size="1200,800" title="..:: Bouquet Viewer ::..">
             <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
-            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background5.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
         </screen>
     """
 
-    def __init__(self, session):
+    def __init__(self, session, bouquet_url, bouquet_name):
         Screen.__init__(self, session)
         self.session = session
-        self.selected_file = None
-        self.del_files = []
+        self.bouquet_url = bouquet_url
+        self.bouquet_name = bouquet_name
 
         self["channel_list"] = MenuList([])
         self["background"] = Pixmap()
-        self["button_red"] = Label("Delete")
-        self["button_green"] = Label("Select All")
+        self["button_red"] = Label("Close")
+        self["button_green"] = Label("Select")  # Za buduće proširenje, npr. direktna instalacija
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
-            "ok": self.select_file,
+            "ok": self.exit,
             "cancel": self.exit,
-            "up": self.up,
-            "down": self.down,
-            "red": self.delete_selected,
-            "green": self.select_all
+            "red": self.exit,
+            "green": self.exit  # Može se dodati funkcionalnost kasnije
         }, -1)
 
-        self.onLayoutFinish.append(self.load_deleted_bouquets)
+        self.onLayoutFinish.append(self.load_channels)
 
-    def load_deleted_bouquets(self):
-        self.del_files = [f for f in os.listdir(BOUQUET_PATH) if f.endswith(".del")]
-        if not self.del_files:
-            self["channel_list"].setList(["No .del files found"])
-        else:
-            self["channel_list"].setList(self.del_files)
-
-    def select_file(self):
-        current = self["channel_list"].getCurrent()
-        if current and current != "No .del files found":
-            self.selected_file = current
-            self["channel_list"].setList([f"{f} {'[SELECTED]' if f == self.selected_file else ''}" for f in self.del_files])
-
-    def select_all(self):
-        if self.del_files:
-            self.selected_file = None
-            self["channel_list"].setList([f"{f} [SELECTED]" for f in self.del_files])
-
-    def delete_selected(self):
-        if not self.del_files:
-            self.session.open(MessageBox, "No .del files to delete!", MessageBox.TYPE_INFO)
-            return
-
-        to_delete = []
-        if self.selected_file:
-            to_delete = [self.selected_file]
-        else:
-            current_list = self["channel_list"].getList()
-            if all("[SELECTED]" in item for item in current_list):
-                to_delete = self.del_files
-
-        if not to_delete:
-            self.session.open(MessageBox, "No files selected for deletion!", MessageBox.TYPE_ERROR)
-            return
-
+    def load_channels(self):
         try:
-            for file in to_delete:
-                os.remove(os.path.join(BOUQUET_PATH, file))
-            self.session.open(MessageBox, f"Deleted {len(to_delete)} file(s) successfully!", MessageBox.TYPE_INFO)
-            self.load_deleted_bouquets()
-            self.selected_file = None
+            response = requests.get(self.bouquet_url)
+            response.raise_for_status()
+            content = response.text.splitlines()
+            channels = []
+            for line in content:
+                if line.startswith("#DESCRIPTION"):
+                    channels.append(line.replace("#DESCRIPTION", "").strip())
+            self["channel_list"].setList(channels if channels else ["No channels found in this bouquet"])
+            self.setTitle(f"Bouquet Viewer: {self.bouquet_name}")
         except Exception as e:
-            self.session.open(MessageBox, f"Error deleting files: {str(e)}", MessageBox.TYPE_ERROR)
-
-    def up(self):
-        self["channel_list"].up()
-
-    def down(self):
-        self["channel_list"].down()
+            self["channel_list"].setList([f"Error loading channels: {str(e)}"])
 
     def exit(self):
         self.close()
@@ -301,7 +268,8 @@ class IPTVManager(Screen):
             <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background3.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
-            <widget name="button_blue" position="420,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#132B9F" foregroundColor="#000000" />
+            <widget name="button_yellow" position="420,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
+            <widget name="button_blue" position="620,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#132B9F" foregroundColor="#000000" />
         </screen>
     """
 
@@ -315,6 +283,7 @@ class IPTVManager(Screen):
         self["background"] = Pixmap()
         self["button_red"] = Label("Delete")
         self["button_green"] = Label("Select")
+        self["button_yellow"] = Label("Cleaner")  # Dodato za Cleaner
         self["button_blue"] = Label("IPTV Editor")
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"], {
@@ -324,6 +293,7 @@ class IPTVManager(Screen):
             "down": self.down,
             "red": self.delete_selected,
             "green": self.select_bouquet,
+            "yellow": self.open_cleaner,  # Dodato za Cleaner
             "blue": self.open_iptv_editor
         }, -1)
 
@@ -384,7 +354,7 @@ class IPTVManager(Screen):
     def select_bouquet(self):
         current = self["channel_list"].getCurrent()
         if current and current != "No IPTV bouquets found":
-            base_current = current.replace(" [SELECTED]", "")  # Uklanjanje [SELECTED] iz imena
+            base_current = current.replace(" [SELECTED]", "")
             for i, f in enumerate(self.iptv_files):
                 display_name = f
                 bouquet_path = os.path.join(BOUQUET_PATH, f)
@@ -508,6 +478,94 @@ class IPTVManager(Screen):
                     self.session.open(IPTVEditor, bouquet_path, f)
                     break
 
+    def open_cleaner(self):
+        self.session.open(BouquetCleaner)
+
+    def up(self):
+        self["channel_list"].up()
+
+    def down(self):
+        self["channel_list"].down()
+
+    def exit(self):
+        self.close()
+
+class BouquetCleaner(Screen):
+    skin = """
+        <screen name="bouquetcleaner" position="center,center" size="1200,800" title="..:: Deleted Bouquets ::..">
+            <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
+            <widget name="button_red" position="20,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
+            <widget name="button_green" position="220,740" size="180,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
+        </screen>
+    """
+
+    def __init__(self, session):
+        Screen.__init__(self, session)
+        self.session = session
+        self.selected_file = None
+        self.del_files = []
+
+        self["channel_list"] = MenuList([])
+        self["background"] = Pixmap()
+        self["button_red"] = Label("Delete")
+        self["button_green"] = Label("Select All")
+
+        self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
+            "ok": self.select_file,
+            "cancel": self.exit,
+            "up": self.up,
+            "down": self.down,
+            "red": self.delete_selected,
+            "green": self.select_all
+        }, -1)
+
+        self.onLayoutFinish.append(self.load_deleted_bouquets)
+
+    def load_deleted_bouquets(self):
+        self.del_files = [f for f in os.listdir(BOUQUET_PATH) if f.endswith(".del")]
+        if not self.del_files:
+            self["channel_list"].setList(["No .del files found"])
+        else:
+            self["channel_list"].setList(self.del_files)
+
+    def select_file(self):
+        current = self["channel_list"].getCurrent()
+        if current and current != "No .del files found":
+            self.selected_file = current
+            self["channel_list"].setList([f"{f} {'[SELECTED]' if f == self.selected_file else ''}" for f in self.del_files])
+
+    def select_all(self):
+        if self.del_files:
+            self.selected_file = None
+            self["channel_list"].setList([f"{f} [SELECTED]" for f in self.del_files])
+
+    def delete_selected(self):
+        if not self.del_files:
+            self.session.open(MessageBox, "No .del files to delete!", MessageBox.TYPE_INFO)
+            return
+
+        to_delete = []
+        if self.selected_file:
+            to_delete = [self.selected_file]
+        else:
+            current_list = self["channel_list"].getList()
+            if all("[SELECTED]" in item for item in current_list):
+                to_delete = self.del_files
+
+        if not to_delete:
+            self.session.open(MessageBox, "No files selected for deletion!", MessageBox.TYPE_ERROR)
+            return
+
+        try:
+            for file in to_delete:
+                os.remove(os.path.join(BOUQUET_PATH, file))
+            self.session.open(MessageBox, f"Deleted {len(to_delete)} file(s) successfully!", MessageBox.TYPE_INFO)
+            self.load_deleted_bouquets()
+            self.selected_file = None
+        except Exception as e:
+            self.session.open(MessageBox, f"Error deleting files: {str(e)}", MessageBox.TYPE_ERROR)
+
     def up(self):
         self["channel_list"].up()
 
@@ -521,7 +579,7 @@ class IPTVEditor(Screen):
     skin = """
         <screen name="iptveditor" position="center,center" size="1200,800" title="..:: IPTV Editor ::..">
             <widget name="channel_list" position="20,20" size="830,700" scrollbarMode="showOnDemand" itemHeight="33" font="Regular;28" />
-            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background4.png" zProvideoPosition="-1" alphatest="on" />
+            <widget name="background" position="850,0" size="350,800" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background4.png" zPosition="-1" alphatest="on" />
             <widget name="button_red" position="20,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#9F1313" foregroundColor="#000000" />
             <widget name="button_green" position="170,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#1F771F" foregroundColor="#000000" />
             <widget name="button_yellow" position="320,740" size="140,40" font="Bold;22" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
@@ -601,7 +659,6 @@ class IPTVEditor(Screen):
                     name = f"{name} [SELECTED]"
             display_names.append(name)
         self["channel_list"].setList(display_names)
-        # Ensure the first selected channel is in view
         if self.selected_channels and self.move_mode:
             self["channel_list"].moveToIndex(self.selected_channels[0])
 
@@ -620,55 +677,42 @@ class IPTVEditor(Screen):
             return
         current_name = self.channels[current_index]["description"] or self.channels[current_index]["service"]
 
-        # Provera za obrazac sa prefiksom (npr. UK:, EXYU:, M4:)
         if ":" in current_name:
             base_prefix = current_name.split(":")[0] + ":"
-            # Pronalazimo sve kanale sa istim prefiksom
             similar_channels = [
                 i for i, channel in enumerate(self.channels)
                 if (channel["description"] or channel["service"]).startswith(base_prefix)
             ]
-            # Provera da li su svi slični kanali već selektovani
             all_selected = all(i in self.selected_channels for i in similar_channels)
             if all_selected and similar_channels:
-                # Poništavamo selekciju svih sličnih kanala
                 self.selected_channels = [i for i in self.selected_channels if i not in similar_channels]
             elif similar_channels:
-                # Selektujemo sve slične kanale
                 self.selected_channels = list(set(self.selected_channels + similar_channels))
             else:
                 self.session.open(MessageBox, f"No similar channels found for: {current_name}", MessageBox.TYPE_INFO)
             self.update_list()
             return
 
-        # Provera za obrazac serije: nešto SXX EX
         if (match := re.match(r"(.*?)\s+S\d+\s+E\d+", current_name, re.IGNORECASE)):
             base_prefix = match.group(1) + " "
-        # Provera za 24/7 kanale
         elif current_name.startswith("24/7 "):
             base_prefix = "24/7 "
-        # Provera za TV kanale ili filmove: uzimamo deo do prvog razmaka
         else:
-            # Uzimamo deo do prvog razmaka (može biti više reči, npr. "Netflix Premiere")
-            parts = current_name.split(" ", 2)  # Razdvojimo na maksimalno 3 dela
+            parts = current_name.split(" ", 2)
             base_prefix = parts[0] + " " if len(parts) > 1 else current_name + " "
-            if len(parts) > 2 and parts[1] in ["Premiere", "Series", "Episode", "TV+"]:  # Za višerečene prefikse poput "Netflix Premiere"
+            if len(parts) > 2 and parts[1] in ["Premiere", "Series", "Episode", "TV+"]:
                 base_prefix = f"{parts[0]} {parts[1]} "
 
-        # Pronalazimo sve kanale koji počinju sa base_prefix ili su tačno jednaki base_prefix bez razmaka
-        base_name = base_prefix.rstrip()  # Uklanjamo poslednji razmak za proveru tačnog podudaranja
+        base_name = base_prefix.rstrip()
         similar_channels = [
             i for i, channel in enumerate(self.channels)
             if (channel["description"] or channel["service"]).startswith(base_prefix) or
                (channel["description"] or channel["service"]) == base_name
         ]
-        # Provera da li su svi slični kanali već selektovani
         all_selected = all(i in self.selected_channels for i in similar_channels)
         if all_selected and similar_channels:
-            # Poništavamo selekciju svih sličnih kanala
             self.selected_channels = [i for i in self.selected_channels if i not in similar_channels]
         elif similar_channels:
-            # Selektujemo sve slične kanale
             self.selected_channels = list(set(self.selected_channels + similar_channels))
         else:
             self.session.open(MessageBox, f"No similar channels found for: {current_name}", MessageBox.TYPE_INFO)
@@ -695,13 +739,13 @@ class IPTVEditor(Screen):
 
     def page_up(self):
         if self.move_mode and self.selected_channels:
-            self.move_channels(-10)  # Move by a page (approximate)
+            self.move_channels(-10)
         else:
             self["channel_list"].pageUp()
 
     def page_down(self):
         if self.move_mode and self.selected_channels:
-            self.move_channels(10)  # Move by a page (approximate)
+            self.move_channels(10)
         else:
             self["channel_list"].pageDown()
 
@@ -713,19 +757,15 @@ class IPTVEditor(Screen):
         selected_channels = sorted(self.selected_channels)
         moved_channels = [self.channels[i] for i in selected_channels]
         
-        # Remove selected channels
         for i in sorted(self.selected_channels, reverse=True):
             new_channels.pop(i)
         
-        # Calculate new insertion point
         first_index = selected_channels[0]
         new_index = max(0, min(first_index + offset, len(new_channels)))
         
-        # Insert channels at new position
         for i, channel in enumerate(moved_channels):
             new_channels.insert(new_index + i, channel)
         
-        # Update selected channels indices
         self.selected_channels = [new_index + i for i in range(len(moved_channels))]
         self.channels = new_channels
         self.update_list()
