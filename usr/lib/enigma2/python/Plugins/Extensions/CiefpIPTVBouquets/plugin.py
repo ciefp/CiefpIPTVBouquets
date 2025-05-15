@@ -11,7 +11,7 @@ from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
 import re
 
-PLUGIN_VERSION = "1.4"  # Ažurirana verzija
+PLUGIN_VERSION = "1.5"  # Ažurirana verzija
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
