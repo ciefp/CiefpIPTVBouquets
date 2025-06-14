@@ -6,7 +6,7 @@ version='1.5'
 changelog='\nFix little bugs\nUpdated Picons List'
 ##############################################################
 
-TMPPATH=/tmp/CiefpsettingsMotor
+TMPPATH=/tmp/CiefpIPTVBouquets
 
 if [ ! -d /usr/lib64 ]; then
 	PLUGINPATH=/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets
