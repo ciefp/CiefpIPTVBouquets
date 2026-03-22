@@ -98,7 +98,7 @@ sync
 echo ""
 echo ""
 echo "#########################################################"
-echo "#          CiefpIPTVBouquets INSTALLED SUCCESSFULLY          #"
+echo "#     CiefpIPTVBouquets INSTALLED SUCCESSFULLY          #"
 echo "#                  developed by ciefp                   #"
 echo "#                  .::CiefpSettings::.                  #"
 echo "#               https://github.com/ciefp                #"
