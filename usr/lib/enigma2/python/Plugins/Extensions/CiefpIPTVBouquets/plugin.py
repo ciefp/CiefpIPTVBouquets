@@ -19,8 +19,8 @@ BOUQUET_PATH = "/etc/enigma2/"
 
 class CiefpIPTV(Screen):
     skin = """
-        <screen position="center,center" size="1920,1080" title="..:: Ciefp IPTV Bouquets ::..    (Version{version})" backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: Ciefp IPTV Bouquets ::.." />
+        <screen position="center,center" size="1920,1080"  backgroundColor="#011a2e">
+            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" title="..:: Ciefp IPTV Bouquets ::..    (Version{version})" />
             <widget name="left_list" position="20,80" size="740,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
             <widget name="right_list" position="780,80" size="740,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
             <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background.png" position="1540,80" size="360,840" />
