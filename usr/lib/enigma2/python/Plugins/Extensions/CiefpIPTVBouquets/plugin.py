@@ -11,7 +11,7 @@ from Screens.MessageBox import MessageBox
 from enigma import eDVBDB
 import re
 
-PLUGIN_VERSION = "1.8"
+PLUGIN_VERSION = "1.9"
 PLUGIN_NAME = "CiefpIPTVBouquets"
 PLUGIN_DESCRIPTION = "Enigma2 IPTV Bouquets"
 GITHUB_API_URL = "https://api.github.com/repos/ciefp/CiefpIPTV/contents/"
@@ -20,16 +20,19 @@ BOUQUET_PATH = "/etc/enigma2/"
 class CiefpIPTV(Screen):
     skin = """
         <screen position="center,center" size="1920,1080"  backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" title="..:: Ciefp IPTV Bouquets ::..    (Version{version})" />
-            <widget name="left_list" position="20,80" size="740,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="right_list" position="780,80" size="740,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background.png" position="1540,80" size="360,840" />
+            <widget name="separator0" position="0,10" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="plugin_title" position="0,20" size="1920,60" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" title="..:: Ciefp IPTV Bouquets ::..    (Version{version})" />
+            <widget name="separator1" position="0,90" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />   
+            <widget name="left_list" position="20,100" size="740,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="right_list" position="780,100" size="700,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="background" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background.png" position="1500,100" size="420,840" />
             <widget name="status" position="20,940" size="1000,55" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" />
-            <widget name="red_button" position="20,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
-            <widget name="green_button" position="290,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
-            <widget name="yellow_button" position="560,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
-            <widget name="blue_button" position="830,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
-            <widget name="version_info" position="1100,985" size="800,50" font="Regular;26" foregroundColor="#00BFFF" backgroundColor="#011a2e" halign="right" />
+            <widget name="separator2" position="0,990" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />
+            <widget name="red_button" position="20,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
+            <widget name="green_button" position="490,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
+            <widget name="yellow_button" position="960,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
+            <widget name="blue_button" position="1430,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
+            <widget name="version_info" position="1400,20" size="500,50" font="Regular;26" foregroundColor="#d5fa02" backgroundColor="#012e01" halign="right" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -49,7 +52,13 @@ class CiefpIPTV(Screen):
         self["red_button"] = Label("IPTV Manager")
         self["blue_button"] = Label("Viewer")  # Promenjeno na Viewer
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
-        
+
+        # Separatori
+        self["separator0"] = Label()
+        self["separator1"] = Label()
+        self["separator2"] = Label()
+        self["separator3"] = Label()
+
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.select_item,
             "cancel": self.exit,
@@ -218,14 +227,17 @@ class CiefpIPTV(Screen):
 
 class BouquetViewer(Screen):
     skin = """
-        <screen name="bouquetviewer" position="center,center" size="1920,1080" title="..:: Bouquet Viewer ::.." backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: Bouquet Viewer ::.." />
-            <widget name="channel_list" position="20,80" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="background" position="1480,80" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background5.png" zPosition="-1" alphatest="on" />
+        <screen name="bouquetviewer" position="center,center" size="1920,1080"  backgroundColor="#011a2e">
+            <widget name="separator0" position="0,10" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="plugin_title" position="0,20" size="1920,60" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: Bouquet Viewer ::.." />
+            <widget name="separator1" position="0,90" size="1920,3" backgroundColor="#d5fa02" zPosition="1" /> 
+            <widget name="channel_list" position="20,100" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="background" position="1480,100" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background5.png" zPosition="-1" alphatest="on" />
             <widget name="status" position="20,940" size="1000,55" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="Channel List" />
-            <widget name="button_red" position="20,985" size="180,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
-            <widget name="button_green" position="220,985" size="180,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
-            <widget name="version_info" position="820,985" size="1080,50" font="Regular;26" foregroundColor="#00BFFF" backgroundColor="#011a2e" halign="right" text="Version: {version}" />
+            <widget name="separator2" position="0,990" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />
+            <widget name="button_red" position="20,1000" size="920,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
+            <widget name="button_green" position="1000,1000" size="900,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
+            <widget name="version_info" position="1400,20" size="500,50" font="Regular;26" foregroundColor="#d5fa02" backgroundColor="#012e01" halign="right" text="Version: {version}" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -233,7 +245,6 @@ class BouquetViewer(Screen):
         Screen.__init__(self, session)
         self.session = session
         self.bouquet_url = bouquet_url
-        self.bouquet_name = bouquet_name
 
         self["plugin_title"] = Label("..:: Bouquet Viewer ::..")
         self["channel_list"] = MenuList([])
@@ -241,6 +252,11 @@ class BouquetViewer(Screen):
         self["button_red"] = Label("Close")
         self["button_green"] = Label("Select")  # Za buduće proširenje, npr. direktna instalacija
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
+
+        # Separatori
+        self["separator0"] = Label()
+        self["separator1"] = Label()
+        self["separator2"] = Label()
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.exit,
@@ -261,7 +277,6 @@ class BouquetViewer(Screen):
                 if line.startswith("#DESCRIPTION"):
                     channels.append(line.replace("#DESCRIPTION", "").strip())
             self["channel_list"].setList(channels if channels else ["No channels found in this bouquet"])
-            self.setTitle(f"Bouquet Viewer: {self.bouquet_name}")
         except Exception as e:
             self["channel_list"].setList([f"Error loading channels: {str(e)}"])
 
@@ -270,16 +285,19 @@ class BouquetViewer(Screen):
 
 class IPTVManager(Screen):
     skin = """
-        <screen name="iptvmanager" position="center,center" size="1920,1080" title="..:: IPTV Manager ::.." backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: IPTV Manager ::.." />
-            <widget name="channel_list" position="20,80" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="background" position="1480,80" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background3.png" zPosition="-1" alphatest="on" />
-            <widget name="status" position="20,940" size="1000,55" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="IPTV Manager" />
-            <widget name="button_red" position="20,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
-            <widget name="button_green" position="290,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
-            <widget name="button_yellow" position="560,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
-            <widget name="button_blue" position="830,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
-            <widget name="version_info" position="1100,985" size="800,50" font="Regular;26" foregroundColor="#00BFFF" backgroundColor="#011a2e" halign="right" text="Version: {version}" />
+        <screen name="iptvmanager" position="center,center" size="1920,1080"  backgroundColor="#011a2e">
+            <widget name="separator0" position="0,10" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="plugin_title" position="0,20" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: IPTV Manager ::.." />
+            <widget name="separator1" position="0,90" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />   
+            <widget name="channel_list" position="20,100" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="background" position="1480,100" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background3.png" zPosition="-1" alphatest="on" />
+            <widget name="status" position="20,950" size="1000,50" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="IPTV Manager" />
+            <widget name="separator2" position="0,990" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />
+            <widget name="button_red" position="20,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
+            <widget name="button_green" position="490,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
+            <widget name="button_yellow" position="960,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
+            <widget name="button_blue" position="1430,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
+            <widget name="version_info" position="1400,20" size="500,50" font="Regular;26" foregroundColor="#d5fa02" backgroundColor="#012e01" halign="right" text="Version: {version}" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -297,6 +315,11 @@ class IPTVManager(Screen):
         self["button_yellow"] = Label("Cleaner")  # Dodato za Cleaner
         self["button_blue"] = Label("IPTV Editor")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
+
+        # Separatori
+        self["separator0"] = Label()
+        self["separator1"] = Label()
+        self["separator2"] = Label()
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"], {
             "ok": self.select_bouquet,
@@ -504,14 +527,17 @@ class IPTVManager(Screen):
 
 class BouquetCleaner(Screen):
     skin = """
-        <screen name="bouquetcleaner" position="center,center" size="1920,1080" title="..:: Deleted Bouquets ::.." backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: Deleted Bouquets ::.." />
-            <widget name="channel_list" position="20,80" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="background" position="1480,80" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
+        <screen name="bouquetcleaner" position="center,center" size="1920,1080"  backgroundColor="#011a2e">
+            <widget name="separator0" position="0,10" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="plugin_title" position="0,20" size="1920,60" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: Deleted Bouquets ::.." />
+            <widget name="separator1" position="0,90" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />   
+            <widget name="channel_list" position="20,100" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="background" position="1480,100" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background2.png" zPosition="-1" alphatest="on" />
             <widget name="status" position="20,940" size="1000,55" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="Deleted Bouquets" />
-            <widget name="button_red" position="20,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
-            <widget name="button_green" position="290,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
-            <widget name="version_info" position="1100,985" size="800,50" font="Regular;26" foregroundColor="#00BFFF" backgroundColor="#011a2e" halign="right" text="Version: {version}" />
+            <widget name="separator2" position="0,990" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />
+            <widget name="button_red" position="20,1000" size="920,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
+            <widget name="button_green" position="1000,1000" size="900,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
+            <widget name="version_info" position="1400,20" size="500,50" font="Regular;26" foregroundColor="#d5fa02" backgroundColor="#012e01" halign="right" text="Version: {version}" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -527,6 +553,11 @@ class BouquetCleaner(Screen):
         self["button_red"] = Label("Delete")
         self["button_green"] = Label("Select All")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
+
+        # Separatori
+        self["separator0"] = Label()
+        self["separator1"] = Label()
+        self["separator2"] = Label()
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions"], {
             "ok": self.select_file,
@@ -594,16 +625,19 @@ class BouquetCleaner(Screen):
 
 class IPTVEditor(Screen):
     skin = """
-        <screen name="iptveditor" position="center,center" size="1920,1080" title="..:: IPTV Editor ::.." backgroundColor="#011a2e">
-            <widget name="plugin_title" position="0,10" size="1920,50" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: IPTV Editor ::.." />
-            <widget name="channel_list" position="20,80" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
-            <widget name="background" position="1480,80" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background4.png" zPosition="-1" alphatest="on" />
-            <widget name="status" position="20,940" size="1000,55" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="IPTV Editor" />
-            <widget name="button_red" position="20,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
-            <widget name="button_green" position="290,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
-            <widget name="button_yellow" position="560,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
-            <widget name="button_blue" position="830,985" size="250,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
-            <widget name="version_info" position="1100,985" size="800,50" font="Regular;26" foregroundColor="#00BFFF" backgroundColor="#011a2e" halign="right" text="Version: {version}" />
+        <screen name="iptveditor" position="center,center" size="1920,1080"  backgroundColor="#011a2e">
+            <widget name="separator0" position="0,10" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="plugin_title" position="0,20" size="1920,60" font="Bold;34" halign="center" backgroundColor="#012e01" foregroundColor="#00FF00" text="..:: IPTV Editor ::.." />
+            <widget name="separator1" position="0,90" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />  
+            <widget name="channel_list" position="20,100" size="1400,840" scrollbarMode="showAlways" itemHeight="42" font="Regular;32" backgroundColor="#011a2e" foregroundColor="#FFFFFF" selectionBackgroundColor="#1a4a7a" />
+            <widget name="background" position="1480,100" size="420,840" pixmap="/usr/lib/enigma2/python/Plugins/Extensions/CiefpIPTVBouquets/background4.png" zPosition="-1" alphatest="on" />
+            <widget name="status" position="20,950" size="1000,50" font="Regular;26" backgroundColor="#011a2e" foregroundColor="#FFD700" text="IPTV Editor" />
+            <widget name="separator2" position="0,990" size="1920,3" backgroundColor="#d5fa02" zPosition="1" />
+            <widget name="button_red" position="20,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F1313" foregroundColor="#FFFFFF" />
+            <widget name="button_green" position="490,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#1F771F" foregroundColor="#FFFFFF" />
+            <widget name="button_yellow" position="960,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#9F9F13" foregroundColor="#000000" />
+            <widget name="button_blue" position="1430,1000" size="460,50" font="Bold;32" halign="center" backgroundColor="#132B9F" foregroundColor="#FFFFFF" />
+            <widget name="version_info" position="1400,20" size="500,50" font="Regular;26" foregroundColor="#d5fa02" backgroundColor="#012e01" halign="right" text="Version: {version}" />
         </screen>
     """.format(version=PLUGIN_VERSION)
 
@@ -627,6 +661,11 @@ class IPTVEditor(Screen):
         self["button_yellow"] = Label("Move Mode")
         self["button_blue"] = Label("Select Similar")
         self["version_info"] = Label(f"Version: {PLUGIN_VERSION}")
+
+        # Separatori
+        self["separator0"] = Label()
+        self["separator1"] = Label()
+        self["separator2"] = Label()
 
         self["actions"] = ActionMap(["OkCancelActions", "ColorActions", "DirectionActions"], {
             "ok": self.select_channel,
